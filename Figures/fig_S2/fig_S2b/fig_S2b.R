@@ -1,0 +1,66 @@
+rm(list = ls())
+library(rstudioapi)
+library(multcomp)
+library(metafor)
+library(ggplot2)
+library(plotbiomes)
+currentPath <- getSourceEditorContext()$path
+charLocations <- gregexpr('/',currentPath)[[1]]
+currentPath <- substring(currentPath,1,charLocations[length(charLocations)]-1)
+setwd(currentPath)
+
+##==== Function ====##
+theme_custom <- function(){
+  myTheme <- theme(panel.background = element_rect(fill = 'white',color = 'black',size = 0.5),
+                   panel.border = element_rect(fill = NA,color = 'white'),
+                   panel.grid = element_blank(),
+                   legend.position = 'none',
+                   plot.margin = margin(6,6,6,6),
+                   plot.background = element_blank(),
+                   axis.line = element_line(color = '#000000',size = 0.4),
+                   axis.ticks = element_line(size = 0.3),
+                   axis.ticks.length = unit(-0.15,'lines'),
+                   axis.title.y = element_text(size = 7,margin = margin(0,6,0,0),face = 'bold'),
+                   axis.title.x = element_text(size = 7,margin = margin(4,0,0,0),face = 'bold'),
+                   axis.text.y = element_text(size = 7,margin = margin(0,5,0,0),color = '#000000'),
+                   axis.text.x = element_text(size = 7,margin = margin(6,0,0,0),color = '#000000'))
+  return(myTheme)
+}
+CMYKtoRGB <- function(C,M,Y,K){
+  Rc <- (1-C)*(1-K)
+  Gc <- (1-M)*(1-K)
+  Bc <- (1-Y)*(1-K)
+  R <- as.character(as.hexmode((ceiling(Rc*255))))
+  G <- as.character(as.hexmode((ceiling(Gc*255))))
+  B <- as.character(as.hexmode((ceiling(Bc*255))))
+  if(nchar(R) == 1){
+    R <- paste0('0',R)
+  }
+  if(nchar(G) == 1){
+    G <- paste0('0',G)
+  }
+  if(nchar(B) == 1){
+    B <- paste0('0',B)
+  }
+  RGBColor <- paste0('#',R,G,B)
+  return(RGBColor)
+}
+##==== Function ====##
+
+biomes <- Whittaker_biomes
+colnames(biomes) <- c('TEM','PRE','BiomeID','Biome')
+biomes$PRE <- biomes$PRE*10
+biomes$BiomeID <- as.factor(biomes$BiomeID)
+dataMatrix <- read.csv('UniqueClimate.csv')
+
+fig_S2b <- ggplot()+
+  geom_polygon(data = biomes,mapping = aes(x = TEM,y = PRE,fill = BiomeID),color = '#000000',size = 0.3)+
+  geom_point(data = dataMatrix,mapping = aes(x = TEM,y = PRE),color = '#333333',size = 0.5)+
+  scale_fill_manual(values = c(CMYKtoRGB(0.35,0.26,1,0.07),CMYKtoRGB(0.09,0.21,0.81,0),CMYKtoRGB(0.59,0.08,0.75,0.01),
+                               CMYKtoRGB(0.79,0.17,1,0),CMYKtoRGB(0.07,0.64,0.85,0.01),CMYKtoRGB(0.25,0,0.13,0),
+                               CMYKtoRGB(0.37,0.04,0.5,0),CMYKtoRGB(0,0.13,0.58,0),CMYKtoRGB(0.44,0.08,0.74,0)))+
+  theme_custom()
+outputFileName <- paste0(currentPath,'/fig_S2b_Raw.pdf')
+pdf(file = outputFileName,width = 3,height = 2.5,colormodel = 'cmyk')
+print(fig_S2b)
+dev.off()
