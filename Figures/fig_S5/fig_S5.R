@@ -1,6 +1,7 @@
 rm(list = ls())
 library(rstudioapi)
 library(ggplot2)
+library(cowplot)
 currentPath <- getSourceEditorContext()$path
 charLocations <- gregexpr('/',currentPath)[[1]]
 currentPath <- substring(currentPath,1,charLocations[length(charLocations)]-1)
@@ -58,10 +59,6 @@ fig_S5_1 <- ggplot()+
   scale_fill_manual(values = c(CMYKtoRGB(0,0.38,0.96,0),CMYKtoRGB(0.82,0.20,0.93,0.24),CMYKtoRGB(0.84,0.67,0,0)))+
   coord_polar('y',start = 0)+
   theme_custom()
-outputFileName <- paste0(currentPath,'/fig_S5_1.pdf')
-pdf(file = outputFileName,width = 1.3,height = 1.3,colormodel = 'cmyk')
-print(fig_S5_1)
-dev.off()
 ##==== Species ====##
 
 ##==== Community ====##
@@ -78,10 +75,6 @@ fig_S5_2 <- ggplot()+
   scale_fill_manual(values = c(CMYKtoRGB(0,0.38,0.96,0),CMYKtoRGB(0.82,0.20,0.93,0.24),CMYKtoRGB(0.84,0.67,0,0)))+
   coord_polar('y',start = 0)+
   theme_custom()
-outputFileName <- paste0(currentPath,'/fig_S5_2.pdf')
-pdf(file = outputFileName,width = 1.3,height = 1.3,colormodel = 'cmyk')
-print(fig_S5_2)
-dev.off()
 ##==== Community ====##
 
 ##==== All ====##
@@ -108,8 +101,15 @@ fig_S5_3 <- ggplot()+
   scale_fill_manual(values = c(CMYKtoRGB(0,0.38,0.96,0),CMYKtoRGB(0.82,0.20,0.93,0.24),CMYKtoRGB(0.84,0.67,0,0)))+
   coord_polar('y',start = 0)+
   theme_custom()
-outputFileName <- paste0(currentPath,'/fig_S5_3.pdf')
-pdf(file = outputFileName,width = 1.3,height = 1.3,colormodel = 'cmyk')
-print(fig_S5_3)
-dev.off()
 ##==== All ====##
+
+##==== Combine ====##
+fig_S5 <- ggdraw()+
+  draw_plot(fig_S5_1,x = 0,y = 0,width = 0.333,height = 1)+
+  draw_plot(fig_S5_2,x = 0.334,y = 0,width = 0.333,height = 1)+
+  draw_plot(fig_S5_2,x = 0.667,y = 0,width = 0.333,height = 1)
+outputFileName <- paste0(currentPath,'/fig_S5.pdf')
+pdf(file = outputFileName,width = 3.5,height = 1,colormodel = 'cmyk')
+print(fig_S5)
+dev.off()
+##==== Combine ====##

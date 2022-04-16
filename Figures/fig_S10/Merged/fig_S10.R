@@ -1,0 +1,629 @@
+rm(list = ls())
+library(rstudioapi)
+library(metafor)
+library(ggplot2)
+library(cowplot)
+currentPath <- getSourceEditorContext()$path
+charLocations <- gregexpr('/',currentPath)[[1]]
+currentPath <- substring(currentPath,1,charLocations[length(charLocations)]-1)
+setwd(currentPath)
+
+##==== Function ====##
+theme_custom <- function(){
+  myTheme <- theme(panel.background = element_rect(fill = 'white',color = 'black',size = 0.5),
+                   panel.grid = element_blank(),
+                   legend.position = 'none',
+                   plot.margin = margin(6,6,6,6),
+                   plot.background = element_blank(),
+                   axis.ticks = element_line(size = 0.3),
+                   axis.ticks.length = unit(-0.15,'lines'),
+                   axis.title.y = element_blank(),
+                   axis.title.x = element_blank(),
+                   axis.text.y = element_text(size = 7,margin = margin(0,3,0,0),color = '#000000'),
+                   axis.text.x = element_text(size = 7,margin = margin(4,0,0,0),color = '#000000'))
+  return(myTheme)
+}
+CMYKtoRGB <- function(C,M,Y,K){
+  Rc <- (1-C)*(1-K)
+  Gc <- (1-M)*(1-K)
+  Bc <- (1-Y)*(1-K)
+  R <- as.character(as.hexmode((ceiling(Rc*255))))
+  G <- as.character(as.hexmode((ceiling(Gc*255))))
+  B <- as.character(as.hexmode((ceiling(Bc*255))))
+  if(nchar(R) == 1){
+    R <- paste0('0',R)
+  }
+  if(nchar(G) == 1){
+    G <- paste0('0',G)
+  }
+  if(nchar(B) == 1){
+    B <- paste0('0',B)
+  }
+  RGBColor <- paste0('#',R,G,B)
+  return(RGBColor)
+}
+##==== Function ====##
+
+##==== Part 1: Height (Species) ====##
+load('Data_Height_Species.R')
+# Part 1.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('yi','vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$yi),]
+dataMatrix$vi <- sqrt(dataMatrix$vi)
+selectIDs <- which((dataMatrix$yi <= quantile(dataMatrix$yi,0.98))&(dataMatrix$yi >= quantile(dataMatrix$yi,0.02))&(dataMatrix$vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$yi[selectIDs],SD = dataMatrix$vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 1.2: Draw
+fig_S10a <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-1.5,1.5),breaks = seq(-1.5,1.5,0.5),labels = c('-1.5','-1.0','-0.5','0','0.5','1.0','1.5'),expand = c(0,0))+
+  theme_custom()
+fig_S10a_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.48,0.48),breaks = seq(-0.4,0.4,0.4),labels = c('-0.4','0','0.4'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,150),breaks = seq(0,150,50))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 1: Height (Species) ====##
+
+##==== Part 2: DBH (Species) ====##
+load('Data_DBH_Species.R')
+# Part 2.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('yi','vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$yi),]
+dataMatrix$vi <- sqrt(dataMatrix$vi)
+selectIDs <- which((dataMatrix$yi <= quantile(dataMatrix$yi,0.98))&(dataMatrix$yi >= quantile(dataMatrix$yi,0.02))&(dataMatrix$vi < 0.3))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$yi[selectIDs],SD = dataMatrix$vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 2.2: Draw
+fig_S10b <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-1.5,1.5),breaks = seq(-1.5,1.5,0.5),labels = c('-1.5','-1.0','-0.5','0','0.5','1.0','1.5'),expand = c(0,0))+
+  theme_custom()
+fig_S10b_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.48,0.48),breaks = seq(-0.4,0.4,0.4),labels = c('-0.4','0','0.4'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,120),breaks = seq(0,120,40))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 2: DBH (Species) ====##
+
+##==== Part 3: Biomass (Species) ====##
+load('Data_Bio_Species.R')
+# Part 3.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('yi','vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$yi),]
+dataMatrix$vi <- sqrt(dataMatrix$vi)
+selectIDs <- which((dataMatrix$yi <= quantile(dataMatrix$yi,0.98))&(dataMatrix$yi >= quantile(dataMatrix$yi,0.02))&(dataMatrix$vi < 0.3))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$yi[selectIDs],SD = dataMatrix$vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 3.2: Draw
+fig_S10c <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-2,2),breaks = seq(-2,2,1),labels = c('-2.0','-1.0','0','1.0','2.0'),expand = c(0,0))+
+  theme_custom()
+fig_S10c_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.04,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.96,0.96),breaks = seq(-0.8,0.8,0.8),labels = c('-0.8','0','0.8'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,65),breaks = seq(0,60,30))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 3: Biomass (Species) ====##
+
+##==== Part 4: Height (NE) ====##
+load('Data_Height_Community.R')
+# Part 4.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Net_yi','Net_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Net_yi),]
+dataMatrix$Net_vi <- sqrt(dataMatrix$Net_vi)
+selectIDs <- which((dataMatrix$Net_yi <= quantile(dataMatrix$Net_yi,0.98))&(dataMatrix$Net_yi >= quantile(dataMatrix$Net_yi,0.02))&(dataMatrix$Net_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Net_yi[selectIDs],SD = dataMatrix$Net_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 4.2: Draw
+fig_S10d <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10d_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.4,0.4),breaks = seq(-0.3,0.3,0.3),labels = c('-0.3','0','0.3'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,65),breaks = seq(0,60,30))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 4: Height (NE) ====##
+
+##==== Part 5: DBH (NE) ====##
+load('Data_DBH_Community.R')
+# Part 5.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Net_yi','Net_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Net_yi),]
+dataMatrix$Net_vi <- sqrt(dataMatrix$Net_vi)
+selectIDs <- which((dataMatrix$Net_yi <= quantile(dataMatrix$Net_yi,0.98))&(dataMatrix$Net_yi >= quantile(dataMatrix$Net_yi,0.02))&(dataMatrix$Net_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Net_yi[selectIDs],SD = dataMatrix$Net_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 5.2: Draw
+fig_S10e <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10e_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.3,0.3),breaks = seq(-0.2,0.2,0.2),labels = c('-0.2','0','0.2'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,50),breaks = seq(0,40,20))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 5: DBH (NE) ====##
+
+##==== Part 6: Biomass (NE) ====##
+load('Data_Bio_Community.R')
+# Part 6.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Net_yi','Net_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Net_yi),]
+dataMatrix$Net_vi <- sqrt(dataMatrix$Net_vi)
+selectIDs <- which((dataMatrix$Net_yi <= quantile(dataMatrix$Net_yi,0.98))&(dataMatrix$Net_yi >= quantile(dataMatrix$Net_yi,0.02))&(dataMatrix$Net_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Net_yi[selectIDs],SD = dataMatrix$Net_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 6.2: Draw
+fig_S10f <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-1.6,1.6),breaks = seq(-1.6,1.6,0.8),labels = c('-1.6','-0.8','0','0.8','1.6'),expand = c(0,0))+
+  theme_custom()
+fig_S10f_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.04,fill = CMYKtoRGB(0.84,0.67,0,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-1,1),breaks = seq(-0.8,0.8,0.8),labels = c('-0.8','0','0.8'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,25),breaks = seq(0,20,10))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 6: Biomass (NE) ====##
+
+##==== Part 7: Height (CE) ====##
+load('Data_Height_Community.R')
+# Part 7.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Com_yi','Com_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Com_yi),]
+dataMatrix$Com_vi <- sqrt(dataMatrix$Com_vi)
+selectIDs <- which((dataMatrix$Com_yi <= quantile(dataMatrix$Com_yi,0.98))&(dataMatrix$Com_yi >= quantile(dataMatrix$Com_yi,0.02))&(dataMatrix$Com_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Com_yi[selectIDs],SD = dataMatrix$Com_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 7.2: Draw
+fig_S10g <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10g_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.82,0.20,0.93,0.24))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.4,0.4),breaks = seq(-0.3,0.3,0.3),labels = c('-0.3','0','0.3'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,65),breaks = seq(0,60,30))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 7: Height (CE) ====##
+
+##==== Part 8: DBH (CE) ====##
+load('Data_DBH_Community.R')
+# Part 8.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Com_yi','Com_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Com_yi),]
+dataMatrix$Com_vi <- sqrt(dataMatrix$Com_vi)
+selectIDs <- which((dataMatrix$Com_yi <= quantile(dataMatrix$Com_yi,0.98))&(dataMatrix$Com_yi >= quantile(dataMatrix$Com_yi,0.02))&(dataMatrix$Com_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Com_yi[selectIDs],SD = dataMatrix$Com_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 8.2: Draw
+fig_S10h <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10h_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0.82,0.20,0.93,0.24))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.3,0.3),breaks = seq(-0.2,0.2,0.2),labels = c('-0.2','0','0.2'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,50),breaks = seq(0,40,20))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 8: DBH (CE) ====##
+
+##==== Part 9: Biomass (CE) ====##
+load('Data_Bio_Community.R')
+# Part 9.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Com_yi','Com_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Com_yi),]
+dataMatrix$Com_vi <- sqrt(dataMatrix$Com_vi)
+selectIDs <- which((dataMatrix$Com_yi <= quantile(dataMatrix$Com_yi,0.98))&(dataMatrix$Com_yi >= quantile(dataMatrix$Com_yi,0.02))&(dataMatrix$Com_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Com_yi[selectIDs],SD = dataMatrix$Com_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 9.2: Draw
+fig_S10i <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-1.6,1.6),breaks = seq(-1.6,1.6,0.8),labels = c('-1.6','-0.8','0','0.8','1.6'),expand = c(0,0))+
+  theme_custom()
+fig_S10i_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.04,fill = CMYKtoRGB(0.82,0.20,0.93,0.24))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-1,1),breaks = seq(-0.8,0.8,0.8),labels = c('-0.8','0','0.8'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,25),breaks = seq(0,20,10))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 9: Biomass (CE) ====##
+
+##==== Part 10: Height (SE) ====##
+load('Data_Height_Community.R')
+# Part 10.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Sel_yi','Sel_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Sel_yi),]
+dataMatrix$Sel_vi <- sqrt(dataMatrix$Sel_vi)
+selectIDs <- which((dataMatrix$Sel_yi <= quantile(dataMatrix$Sel_yi,0.98))&(dataMatrix$Sel_yi >= quantile(dataMatrix$Sel_yi,0.02))&(dataMatrix$Sel_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Sel_yi[selectIDs],SD = dataMatrix$Sel_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 10.2: Draw
+fig_S10j <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10j_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.01,fill = CMYKtoRGB(0,0.38,0.96,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.2,0.2),breaks = seq(-0.1,0.1,0.1),labels = c('-0.1','0','0.1'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,200),breaks = seq(0,200,100),labels = c('0','100','200'))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 10: Height (SE) ====##
+
+##==== Part 11: DBH (SE) ====##
+load('Data_DBH_Community.R')
+# Part 11.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Sel_yi','Sel_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Sel_yi),]
+dataMatrix$Sel_vi <- sqrt(dataMatrix$Sel_vi)
+selectIDs <- which((dataMatrix$Sel_yi <= quantile(dataMatrix$Sel_yi,0.98))&(dataMatrix$Sel_yi >= quantile(dataMatrix$Sel_yi,0.02))&(dataMatrix$Sel_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Sel_yi[selectIDs],SD = dataMatrix$Sel_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 11.2: Draw
+fig_S10k <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-0.8,0.8),breaks = seq(-0.8,0.8,0.4),labels = c('-0.8','-0.4','0','0.4','0.8'),expand = c(0,0))+
+  theme_custom()
+fig_S10k_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.01,fill = CMYKtoRGB(0,0.38,0.96,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.2,0.2),breaks = seq(-0.1,0.1,0.1),labels = c('-0.1','0','0.1'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,230),breaks = seq(0,200,100))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 11: DBH (SE) ====##
+
+##==== Part 12: Biomass (SE) ====##
+load('Data_Bio_Community.R')
+# Part 12.1: Prepare Data for drawing
+dataMatrix <- dataMatrix[,c('Sel_yi','Sel_vi')]
+dataMatrix <- dataMatrix[order(dataMatrix$Sel_yi),]
+dataMatrix$Sel_vi <- sqrt(dataMatrix$Sel_vi)
+selectIDs <- which((dataMatrix$Sel_yi <= quantile(dataMatrix$Sel_yi,0.98))&(dataMatrix$Sel_yi >= quantile(dataMatrix$Sel_yi,0.02))&(dataMatrix$Sel_vi < 0.4))
+figData <- data.frame(Sample = seq(1,length(selectIDs)),Mean = dataMatrix$Sel_yi[selectIDs],SD = dataMatrix$Sel_vi[selectIDs])
+extraFigData <- data.frame()
+for(i in seq(1,nrow(figData))){
+  if((figData[i,'Mean']+qnorm(0.975)*figData[i,'SD']) < 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.1,0.91,0.91,0.35)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+  if((figData[i,'Mean']-qnorm(0.975)*figData[i,'SD']) > 0){
+    tempData <- figData[i,]
+    tempData$Color <- CMYKtoRGB(0.84,0.67,0,0)
+    extraFigData <- rbind(extraFigData,tempData)
+  }
+}
+# Part 12.2: Draw
+fig_S10l <- ggplot()+
+  geom_errorbar(data = figData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = '#C8C8C8',size = 0.1,width = 0)+
+  geom_errorbar(data = extraFigData,mapping = aes(x = Sample,ymin = Mean - qnorm(0.975)*SD,ymax = Mean + qnorm(0.975)*SD),
+                color = extraFigData$Color,size = 0.1,width = 0)+
+  geom_point(data = extraFigData,mapping = aes(x = Sample,y = Mean),color = extraFigData$Color,size = 0.1)+
+  geom_hline(yintercept = 0,linetype = 'dashed',color = '#000000',size = 0.3)+
+  scale_x_continuous(limits = c(1,nrow(figData)),breaks = c(1,nrow(figData)),labels = c('1',as.character(nrow(dataMatrix))),expand = c(0.03,0.03))+
+  scale_y_continuous(limits = c(-1.6,1.6),breaks = seq(-1.6,1.6,0.8),labels = c('-1.6','-0.8','0','0.8','1.6'),expand = c(0,0))+
+  theme_custom()
+fig_S10l_Insert <- ggplot()+
+  geom_histogram(data = figData,mapping = aes(x = Mean),binwidth = 0.02,fill = CMYKtoRGB(0,0.38,0.96,0))+
+  geom_vline(xintercept = 0,size = 0.2,color = '#000000',linetype = 'dashed')+
+  scale_x_continuous(limits = c(-0.4,0.4),breaks = seq(-0.3,0.3,0.3),labels = c('-0.3','0','0.3'),expand = c(0,0))+
+  scale_y_continuous(limits = c(0,70),breaks = seq(0,60,30))+
+  theme_custom()+
+  theme(plot.margin = margin(2,2,2,2),
+        axis.ticks.length = unit(-0.1,'lines'),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size = 6,margin = margin(2,0,0,0),color = '#000000'),
+        axis.text.y = element_text(size = 6,margin = margin(0,2,0,0),color = '#000000'))
+##==== Part 12: Biomass (SE) ====##
+
+##==== Part 13: Combine ====##
+fig_S10 <- ggdraw()+
+  draw_plot(fig_S10a,x = 0,y = 0.75,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10b,x = 0.334,y = 0.75,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10c,x = 0.667,y = 0.75,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10d,x = 0,y = 0.5,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10e,x = 0.334,y = 0.5,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10f,x = 0.667,y = 0.5,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10g,x = 0,y = 0.25,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10h,x = 0.334,y = 0.25,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10i,x = 0.667,y = 0.25,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10j,x = 0,y = 0,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10k,x = 0.334,y = 0,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10l,x = 0.667,y = 0,width = 0.333,height = 0.25)+
+  draw_plot(fig_S10a_Insert,x = 0.185,y = 0.793,width = 0.125,height = 0.096)+
+  draw_plot(fig_S10b_Insert,x = 0.519,y = 0.793,width = 0.125,height = 0.096)+
+  draw_plot(fig_S10c_Insert,x = 0.862,y = 0.793,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10d_Insert,x = 0.195,y = 0.543,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10e_Insert,x = 0.529,y = 0.543,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10f_Insert,x = 0.862,y = 0.543,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10g_Insert,x = 0.195,y = 0.293,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10h_Insert,x = 0.529,y = 0.293,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10i_Insert,x = 0.862,y = 0.293,width = 0.115,height = 0.096)+
+  draw_plot(fig_S10j_Insert,x = 0.185,y = 0.043,width = 0.125,height = 0.096)+
+  draw_plot(fig_S10k_Insert,x = 0.519,y = 0.043,width = 0.125,height = 0.096)+
+  draw_plot(fig_S10l_Insert,x = 0.862,y = 0.043,width = 0.115,height = 0.096)
+outputFileName <- paste0(currentPath,'/fig_S10.pdf')
+pdf(file = outputFileName,width = 4.5,height = 5,colormodel = 'cmyk')
+print(fig_S10)
+dev.off()
+##==== Part 13: Combine ====##

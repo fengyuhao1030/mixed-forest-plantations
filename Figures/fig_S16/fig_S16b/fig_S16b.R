@@ -68,6 +68,7 @@ dataMatrix$Level1 <- as.factor(seq(1,nrow(dataMatrix)))
 ##==== Part 1: Collate data ====##
 
 ##==== Part 2: Fit plot size ====##
+res_Null <- rma.mv(yi,vi,random = ~1|Level4/Level3/Level2/Level1,method = 'ML',data = dataMatrix)
 res <- rma.mv(yi,vi,mods = ~PlotSize,random = ~1|Level4/Level3/Level2/Level1,method = 'ML',data = dataMatrix)
 # Fit line
 plotsizeLine <- as.data.frame(matrix(data = 0,nrow = 100,ncol = 4))
